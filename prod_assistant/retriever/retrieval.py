@@ -65,10 +65,10 @@ class Retriever:
         output=retriever.invoke(query)
         return output
     
-if __name__=='__main__':
-    retriever_obj = Retriever()
-    user_query = "Can you suggest good budget laptops?"
-    results = retriever_obj.call_retriever(user_query)
+# if __name__=='__main__':
+#     retriever_obj = Retriever()
+#     user_query = "Can you suggest good budget laptops?"
+#     results = retriever_obj.call_retriever(user_query)
 
-    for idx, doc in enumerate(results, 1):
-        print(f"Result {idx}: {doc.page_content}\nMetadata: {doc.metadata}\n")
+#     for idx, doc in enumerate(results, 1):
+#         print(f"Result {idx}: {doc.page_content}\nMetadata: {doc.metadata}\n")
