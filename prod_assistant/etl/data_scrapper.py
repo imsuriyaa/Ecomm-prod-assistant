@@ -9,7 +9,6 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 
 class FlipkartScraper:
-
     def __init__(self, output_dir="data"):
         self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
@@ -23,6 +22,7 @@ class FlipkartScraper:
         driver = uc.Chrome(options=options,use_subprocess=True)
 
         if not product_url.startswith("http"):
+            driver.quit()
             return "No reviews found"
 
         try:
@@ -55,7 +55,7 @@ class FlipkartScraper:
 
         driver.quit()
         return " || ".join(reviews) if reviews else "No reviews found"
-
+    
     def scrape_flipkart_products(self, query, max_products=1, review_count=2):
         """Scrape Flipkart products based on a search query.
         """
@@ -97,7 +97,7 @@ class FlipkartScraper:
 
         driver.quit()
         return products
-
+    
     def save_to_csv(self, data, filename="product_reviews.csv"):
         """Save the scraped product reviews to a CSV file."""
         if os.path.isabs(filename):
@@ -113,3 +113,4 @@ class FlipkartScraper:
             writer = csv.writer(f)
             writer.writerow(["product_id", "product_title", "rating", "total_reviews", "price", "top_reviews"])
             writer.writerows(data)
+        
