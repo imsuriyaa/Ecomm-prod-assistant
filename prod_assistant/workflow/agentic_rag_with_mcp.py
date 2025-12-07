@@ -11,7 +11,6 @@ from utils.model_loader import ModelLoader
 from langgraph.checkpoint.memory import MemorySaver
 import asyncio
 from evaluation.ragas_eval import evaluate_context_precision, evaluate_response_relevancy
-from langchain_mcp_adapters.client import MultiServerMCPClient
 
 
 class AgenticRAG:
@@ -25,19 +24,6 @@ class AgenticRAG:
         self.model_loader = ModelLoader()
         self.llm = self.model_loader.load_llm()
         self.checkpointer = MemorySaver()
-        
-        # MCP Client Init
-        self.mcp_client = MultiServerMCPClient({
-            "product_retriever": {
-                "command": "python",
-                "args": ["prod_assistant/mcp_servers/product_search_server.py"],  # absolute path recommended
-                "transport": "stdio"
-            }
-        })
-        # Load MCP tools (async ko sync wrapper me call karna hoga)
-        self.mcp_tools = asyncio.run(self.mcp_client.get_tools())
-
-        
         self.workflow = self._build_workflow()
         self.app = self.workflow.compile(checkpointer=self.checkpointer)
 
@@ -74,13 +60,12 @@ class AgenticRAG:
             return {"messages": [HumanMessage(content=response)]}
 
     def _vector_retriever(self, state: AgentState):
-        print("--- RETRIEVER (MCP) ---")
+        
+        print("--- RETRIEVER ---")
         query = state["messages"][-1].content
-        # Find the tool by name
-        tool = next(t for t in self.mcp_tools if t.name == "get_product_info")
-        # Call the tool (sync wrapper)
-        result = asyncio.run(tool.ainvoke({"query": query}))
-        context = result if result else "No data"
+        retriever = self.retriever_obj.load_retriever()
+        docs = retriever.invoke(query)
+        context = self._format_docs(docs)
         return {"messages": [HumanMessage(content=context)]}
 
     def _grade_documents(self, state: AgentState) -> Literal["generator", "rewriter"]:
@@ -111,13 +96,10 @@ class AgenticRAG:
     def _rewrite(self, state: AgentState):
         print("--- REWRITE ---")
         question = state["messages"][0].content
-        prompt = ChatPromptTemplate.from_template(
-            "Rewrite this user query to make it more clear and specific for a search engine. "
-            "Do NOT answer the query. Only rewrite it.\n\nQuery: {question}\nRewritten Query:"
+        new_q = self.llm.invoke(
+            [HumanMessage(content=f"Rewrite the query to be clearer: {question}")]
         )
-        chain = prompt | self.llm | StrOutputParser()
-        new_q = chain.invoke({"question": question})
-        return {"messages": [HumanMessage(content=new_q.strip())]}
+        return {"messages": [HumanMessage(content=new_q.content)]}
 
     # ---------- Build Workflow ----------
     def _build_workflow(self):
@@ -149,7 +131,31 @@ class AgenticRAG:
                                  config={"configurable": {"thread_id": thread_id}})
         return result["messages"][-1].content
     
+        # function call with be asscoiate
+        # you will get some score
+        # put condition behalf on that score
+        # if relevany>0.75
+            #return
+        #else:
+            #contine
+
+
 if __name__ == "__main__":
+    
+    
     rag_agent = AgenticRAG()
     answer = rag_agent.run("What is the price of iPhone 15?")
     print("\nFinal Answer:\n", answer)
+    
+    
+    # retrieved_contexts,response = invoke_chain(user_query)
+    
+    # #this is not an actual output this have been written to test the pipeline
+    # #response="iphone 16 plus, iphone 16, iphone 15 are best phones under 1,00,000 INR."
+    
+    # context_score = evaluate_context_precision(user_query,response,retrieved_contexts)
+    # relevancy_score = evaluate_response_relevancy(user_query,response,retrieved_contexts)
+    
+    # print("\n--- Evaluation Metrics ---")
+    # print("Context Precision Score:", context_score)
+    # print("Response Relevancy Score:", relevancy_score)

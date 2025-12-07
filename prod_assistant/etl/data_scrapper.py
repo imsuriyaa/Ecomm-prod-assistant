@@ -19,7 +19,7 @@ class FlipkartScraper:
         options = uc.ChromeOptions()
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-blink-features=AutomationControlled")
-        driver = uc.Chrome(options=options,use_subprocess=True)
+        driver = uc.Chrome(options=options,use_subprocess=True, version_main=142)
 
         if not product_url.startswith("http"):
             driver.quit()
